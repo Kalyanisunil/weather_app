@@ -2,12 +2,15 @@
 
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+// import 'package:http/http.dart';
 import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import 'package:weather/weather.dart';
 // import 'package:weather_app/BottomBar.dart';
 import 'package:weather_app/consts.dart';
-import 'package:weather_app/suggestions.dart';
+// import 'package:weather_app/reallocation.dart';
 
 import 'package:weather_app/weathercard.dart';
 // import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
@@ -23,10 +26,46 @@ class _HomePageState extends State<HomePage> {
   final WeatherFactory _wf = WeatherFactory(OPENWEATHER_API_KEY);
   Weather? weather;
   late String weatherCondition = "sunny";
+  late List<Gradient> gradients;
   @override
   void initState() {
     super.initState();
-    _fetchWeatherData("Kallambalam");
+     _determinePosition().then((position) {
+      _getCityNameFromCoordinates(position.latitude, position.longitude)
+          .then((cityName) {
+        _fetchWeatherData(cityName);
+      });
+    });
+    gradients = [
+      const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color.fromARGB(255, 76, 139, 211), // Deep Navy Blue
+          Color.fromARGB(255, 133, 160, 210), // Dark Slate Blue
+          Color.fromARGB(255, 138, 173, 212), // Cool Grey Blue
+          Color.fromARGB(255, 94, 110, 131)
+        ],
+      ),
+      const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.fromARGB(255, 241, 236, 84),
+            Color.fromARGB(255, 210, 210, 133), //
+            Color.fromARGB(255, 212, 203, 138), //
+            Color.fromARGB(255, 210, 153, 83),
+          ]),
+      const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.fromARGB(255, 94, 110, 131),
+            Color.fromARGB(255, 24, 27, 30),
+            Color.fromARGB(255, 30, 35, 45), //
+            Color.fromARGB(255, 36, 47, 60), //
+          ]),
+    ];
   }
 
   Future<void> _fetchWeatherData(String cityName) async {
@@ -35,6 +74,37 @@ class _HomePageState extends State<HomePage> {
       weather = w;
       weatherCondition = weather!.weatherMain!;
     });
+  }
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return Future.error('Location services are disabled.');
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+      return Future.error('Location permissions are denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return Future.error(
+          'Location permissions are permanently denied, we cannot request permissions.');
+    }
+
+    return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+  }
+ Future<String> _getCityNameFromCoordinates(double latitude, double longitude) async {
+    List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+    Placemark place = placemarks[0];
+    return place.locality ?? "Unknown";
   }
 
   String getAnimationsforweather(String condition) {
@@ -85,6 +155,18 @@ class _HomePageState extends State<HomePage> {
         child: CircularProgressIndicator(),
       );
     }
+    DateTime now = weather!.date!;
+    int currentHour = now.hour;
+
+    int gradientIndex = 0;
+    if (currentHour >= 6 && currentHour < 12) {
+      gradientIndex = 0; // Morning gradient
+    } else if (currentHour >= 12 && currentHour < 18) {
+      gradientIndex = 1; // Afternoon gradient
+    } else {
+      gradientIndex = 2; // Evening gradient
+    }
+
     Widget locationName() {
       return Text(
         weather?.areaName ?? "",
@@ -92,22 +174,13 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    DateTime now = weather!.date!;
-
     return SingleChildScrollView(
       child: Column(
         children: [
           Container(
-            decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                  Color.fromARGB(255, 76, 139, 211), // Deep Navy Blue
-                  Color.fromARGB(255, 133, 160, 210), // Dark Slate Blue
-                  Color.fromARGB(255, 138, 173, 212), // Cool Grey Blue
-                  Color.fromARGB(255, 94, 110, 131),
-                ])),
+            decoration: BoxDecoration(
+              gradient: gradients[gradientIndex],
+            ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(10.0, 10, 10, 10),
               child: Column(
@@ -281,7 +354,7 @@ class _HomePageState extends State<HomePage> {
                       viewportFraction: 0.3,
                     ),
                   ),
-                  const Suggestions(),
+                  // const Suggestions(),
                 ],
               ),
             ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-// import 'package:weather_app/BottomBar.dart';
-// import 'package:weather_app/home.dart';
+
 import 'package:weather_app/splashscreen.dart';
 
 void main() {
@@ -9,8 +8,7 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-//https://in.pinterest.com/pin/885942557926263679/
-  // This widget is the root of your application.
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
